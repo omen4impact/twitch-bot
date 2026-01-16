@@ -22,8 +22,20 @@ class TwitchBot(commands.Bot):
     ):
         settings = get_settings()
         
+        # Ensure token has oauth: prefix for TwitchIO
+        token = settings.twitch_token
+        if not token.startswith("oauth:"):
+            token = f"oauth:{token}"
+        
+        logger.info(
+            "initializing_twitch_bot",
+            channel=settings.twitch_channel,
+            bot_nick=settings.twitch_bot_nick,
+            token_format="oauth:***" if token.startswith("oauth:") else "raw",
+        )
+        
         super().__init__(
-            token=settings.twitch_token,
+            token=token,
             prefix="!",
             initial_channels=[settings.twitch_channel],
         )
@@ -56,6 +68,15 @@ class TwitchBot(commands.Bot):
             "twitch_connected",
             bot_name=self.nick,
             channel=self.settings.twitch_channel,
+        )
+    
+    async def event_error(self, error: Exception, data: str = None) -> None:
+        """Called when an error occurs."""
+        logger.error(
+            "twitch_error",
+            error=str(error),
+            error_type=type(error).__name__,
+            data=data,
         )
     
     async def event_reconnect(self) -> None:
