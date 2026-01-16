@@ -127,11 +127,21 @@ class Application:
         
         # Run bot and server concurrently
         try:
-            await asyncio.gather(
+            results = await asyncio.gather(
                 self.start_bot(),
                 self.start_server(),
                 return_exceptions=True,
             )
+            # Log any exceptions that were returned
+            for i, result in enumerate(results):
+                if isinstance(result, Exception):
+                    task_name = "bot" if i == 0 else "server"
+                    logger.error(
+                        "task_failed",
+                        task=task_name,
+                        error=str(result),
+                        error_type=type(result).__name__,
+                    )
         except Exception as e:
             logger.error("application_error", error=str(e))
         finally:
