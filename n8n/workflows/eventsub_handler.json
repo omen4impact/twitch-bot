@@ -6,9 +6,7 @@
                 "httpMethod": "POST",
                 "path": "twitch/eventsub",
                 "responseMode": "responseNode",
-                "options": {
-                    "rawBody": true
-                }
+                "options": {}
             },
             "id": "eventsub-webhook",
             "name": "EventSub Webhook",
@@ -16,19 +14,6 @@
             "typeVersion": 2,
             "position": [
                 250,
-                300
-            ]
-        },
-        {
-            "parameters": {
-                "jsCode": "// Twitch EventSub Signature Verification\nconst crypto = require('crypto');\n\nconst body = $input.first().json;\nconst headers = $input.first().headers;\n\n// Get Twitch headers\nconst messageId = headers['twitch-eventsub-message-id'];\nconst timestamp = headers['twitch-eventsub-message-timestamp'];\nconst signature = headers['twitch-eventsub-message-signature'];\nconst messageType = headers['twitch-eventsub-message-type'];\n\n// Get raw body for signature verification\nconst rawBody = $input.first().binary?.data?.toString() || JSON.stringify(body);\n\n// WICHTIG: Ersetze diesen Wert mit deinem TWITCH_EVENTSUB_SECRET\nconst secret = 'DEIN_EVENTSUB_SECRET_HIER';\nconst message = messageId + timestamp + rawBody;\nconst expectedSignature = 'sha256=' + crypto\n  .createHmac('sha256', secret)\n  .update(message)\n  .digest('hex');\n\nconst isValid = signature === expectedSignature;\n\nreturn {\n  ...body,\n  _meta: {\n    messageType,\n    messageId,\n    timestamp,\n    signatureValid: isValid\n  }\n};"
-            },
-            "id": "verify-signature",
-            "name": "Verify Signature",
-            "type": "n8n-nodes-base.code",
-            "typeVersion": 2,
-            "position": [
-                470,
                 300
             ]
         },
@@ -42,12 +27,12 @@
                     },
                     "conditions": [
                         {
-                            "id": "sig-valid",
-                            "leftValue": "={{ $json._meta.signatureValid }}",
-                            "rightValue": true,
+                            "id": "is-challenge",
+                            "leftValue": "={{ $json.body.challenge }}",
+                            "rightValue": "",
                             "operator": {
-                                "type": "boolean",
-                                "operation": "equals"
+                                "type": "string",
+                                "operation": "notEmpty"
                             }
                         }
                     ],
@@ -55,13 +40,38 @@
                 },
                 "options": {}
             },
-            "id": "signature-check",
-            "name": "Signature Valid?",
+            "id": "is-challenge",
+            "name": "Is Verification?",
             "type": "n8n-nodes-base.if",
             "typeVersion": 2,
             "position": [
-                690,
+                470,
                 300
+            ]
+        },
+        {
+            "parameters": {
+                "respondWith": "text",
+                "responseBody": "={{ $json.body.challenge }}",
+                "options": {
+                    "responseCode": 200,
+                    "responseHeaders": {
+                        "entries": [
+                            {
+                                "name": "Content-Type",
+                                "value": "text/plain"
+                            }
+                        ]
+                    }
+                }
+            },
+            "id": "respond-challenge",
+            "name": "Respond Challenge",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1.1,
+            "position": [
+                690,
+                200
             ]
         },
         {
@@ -77,8 +87,8 @@
                                 },
                                 "conditions": [
                                     {
-                                        "leftValue": "={{ $json._meta.messageType }}",
-                                        "rightValue": "webhook_callback_verification",
+                                        "leftValue": "={{ $json.body.subscription.type }}",
+                                        "rightValue": "channel.channel_points_custom_reward_redemption.add",
                                         "operator": {
                                             "type": "string",
                                             "operation": "equals"
@@ -88,7 +98,7 @@
                                 "combinator": "and"
                             },
                             "renameOutput": true,
-                            "outputKey": "challenge"
+                            "outputKey": "channel_points"
                         },
                         {
                             "conditions": {
@@ -99,63 +109,7 @@
                                 },
                                 "conditions": [
                                     {
-                                        "leftValue": "={{ $json._meta.messageType }}",
-                                        "rightValue": "notification",
-                                        "operator": {
-                                            "type": "string",
-                                            "operation": "equals"
-                                        }
-                                    }
-                                ],
-                                "combinator": "and"
-                            },
-                            "renameOutput": true,
-                            "outputKey": "notification"
-                        }
-                    ]
-                },
-                "options": {}
-            },
-            "id": "message-type-router",
-            "name": "Message Type Router",
-            "type": "n8n-nodes-base.switch",
-            "typeVersion": 3,
-            "position": [
-                910,
-                200
-            ]
-        },
-        {
-            "parameters": {
-                "respondWith": "text",
-                "responseBody": "={{ $json.challenge }}",
-                "options": {
-                    "responseCode": 200
-                }
-            },
-            "id": "respond-challenge",
-            "name": "Respond Challenge",
-            "type": "n8n-nodes-base.respondToWebhook",
-            "typeVersion": 1.1,
-            "position": [
-                1130,
-                100
-            ]
-        },
-        {
-            "parameters": {
-                "rules": {
-                    "values": [
-                        {
-                            "conditions": {
-                                "options": {
-                                    "caseSensitive": true,
-                                    "leftValue": "",
-                                    "typeValidation": "strict"
-                                },
-                                "conditions": [
-                                    {
-                                        "leftValue": "={{ $json.subscription.type }}",
+                                        "leftValue": "={{ $json.body.subscription.type }}",
                                         "rightValue": "channel.follow",
                                         "operator": {
                                             "type": "string",
@@ -177,7 +131,7 @@
                                 },
                                 "conditions": [
                                     {
-                                        "leftValue": "={{ $json.subscription.type }}",
+                                        "leftValue": "={{ $json.body.subscription.type }}",
                                         "rightValue": "channel.subscribe",
                                         "operator": {
                                             "type": "string",
@@ -189,39 +143,48 @@
                             },
                             "renameOutput": true,
                             "outputKey": "subscribe"
-                        },
-                        {
-                            "conditions": {
-                                "options": {
-                                    "caseSensitive": true,
-                                    "leftValue": "",
-                                    "typeValidation": "strict"
-                                },
-                                "conditions": [
-                                    {
-                                        "leftValue": "={{ $json.subscription.type }}",
-                                        "rightValue": "stream.online",
-                                        "operator": {
-                                            "type": "string",
-                                            "operation": "equals"
-                                        }
-                                    }
-                                ],
-                                "combinator": "and"
-                            },
-                            "renameOutput": true,
-                            "outputKey": "stream_online"
                         }
                     ]
                 },
-                "options": {}
+                "options": {
+                    "fallbackOutput": "extra"
+                }
             },
             "id": "event-type-router",
             "name": "Event Type Router",
             "type": "n8n-nodes-base.switch",
             "typeVersion": 3,
             "position": [
-                1130,
+                690,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "assignments": {
+                    "assignments": [
+                        {
+                            "id": "cp-msg",
+                            "name": "response",
+                            "value": "={{ '🎁 ' + $json.body.event.user_name + ' hat \"' + $json.body.event.reward.title + '\" eingelöst!' }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "cp-channel",
+                            "name": "channel",
+                            "value": "={{ $json.body.event.broadcaster_user_login }}",
+                            "type": "string"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "channel-points-message",
+            "name": "Channel Points Message",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 3.4,
+            "position": [
+                910,
                 300
             ]
         },
@@ -232,13 +195,13 @@
                         {
                             "id": "follow-msg",
                             "name": "response",
-                            "value": "={{ 'Willkommen @' + $json.event.user_name + '! ❤️ Danke für den Follow!' }}",
+                            "value": "={{ '❤️ Willkommen @' + $json.body.event.user_name + '! Danke für den Follow!' }}",
                             "type": "string"
                         },
                         {
                             "id": "follow-channel",
                             "name": "channel",
-                            "value": "={{ $json.event.broadcaster_user_login }}",
+                            "value": "={{ $json.body.event.broadcaster_user_login }}",
                             "type": "string"
                         }
                     ]
@@ -250,8 +213,8 @@
             "type": "n8n-nodes-base.set",
             "typeVersion": 3.4,
             "position": [
-                1350,
-                200
+                910,
+                450
             ]
         },
         {
@@ -261,13 +224,13 @@
                         {
                             "id": "sub-msg",
                             "name": "response",
-                            "value": "={{ 'PogChamp @' + $json.event.user_name + ' hat gesubbt! Willkommen im Club! 🎉' }}",
+                            "value": "={{ '🎉 PogChamp @' + $json.body.event.user_name + ' hat gesubbt! Willkommen im Club!' }}",
                             "type": "string"
                         },
                         {
                             "id": "sub-channel",
                             "name": "channel",
-                            "value": "={{ $json.event.broadcaster_user_login }}",
+                            "value": "={{ $json.body.event.broadcaster_user_login }}",
                             "type": "string"
                         }
                     ]
@@ -279,8 +242,8 @@
             "type": "n8n-nodes-base.set",
             "typeVersion": 3.4,
             "position": [
-                1350,
-                400
+                910,
+                600
             ]
         },
         {
@@ -302,12 +265,12 @@
                 "options": {}
             },
             "id": "send-event-message",
-            "name": "Send Event Message",
+            "name": "Send to Handler",
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 4.2,
             "position": [
-                1570,
-                300
+                1130,
+                400
             ]
         },
         {
@@ -323,25 +286,8 @@
             "type": "n8n-nodes-base.respondToWebhook",
             "typeVersion": 1.1,
             "position": [
-                1790,
-                300
-            ]
-        },
-        {
-            "parameters": {
-                "respondWith": "json",
-                "responseBody": "={\"error\": \"Invalid signature\"}",
-                "options": {
-                    "responseCode": 401
-                }
-            },
-            "id": "respond-unauthorized",
-            "name": "Respond Unauthorized",
-            "type": "n8n-nodes-base.respondToWebhook",
-            "typeVersion": 1.1,
-            "position": [
-                910,
-                450
+                1350,
+                400
             ]
         }
     ],
@@ -350,43 +296,14 @@
             "main": [
                 [
                     {
-                        "node": "Verify Signature",
+                        "node": "Is Verification?",
                         "type": "main",
                         "index": 0
                     }
                 ]
             ]
         },
-        "Verify Signature": {
-            "main": [
-                [
-                    {
-                        "node": "Signature Valid?",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Signature Valid?": {
-            "main": [
-                [
-                    {
-                        "node": "Message Type Router",
-                        "type": "main",
-                        "index": 0
-                    }
-                ],
-                [
-                    {
-                        "node": "Respond Unauthorized",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Message Type Router": {
+        "Is Verification?": {
             "main": [
                 [
                     {
@@ -406,6 +323,13 @@
         },
         "Event Type Router": {
             "main": [
+                [
+                    {
+                        "node": "Channel Points Message",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
                 [
                     {
                         "node": "Follow Message",
@@ -429,11 +353,22 @@
                 ]
             ]
         },
+        "Channel Points Message": {
+            "main": [
+                [
+                    {
+                        "node": "Send to Handler",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
         "Follow Message": {
             "main": [
                 [
                     {
-                        "node": "Send Event Message",
+                        "node": "Send to Handler",
                         "type": "main",
                         "index": 0
                     }
@@ -444,14 +379,14 @@
             "main": [
                 [
                     {
-                        "node": "Send Event Message",
+                        "node": "Send to Handler",
                         "type": "main",
                         "index": 0
                     }
                 ]
             ]
         },
-        "Send Event Message": {
+        "Send to Handler": {
             "main": [
                 [
                     {
@@ -469,7 +404,8 @@
     "staticData": null,
     "tags": [
         "twitch",
-        "eventsub"
+        "eventsub",
+        "channel-points"
     ],
     "triggerCount": 1
 }
