@@ -1,5 +1,5 @@
-# Twitch IRC Client
-twitchio>=2.8.0
+# Twitch IRC Client - using 2.x which still has IRC support
+twitchio>=2.8.0,<3.0.0
 
 # Web Server
 fastapi>=0.109.0
