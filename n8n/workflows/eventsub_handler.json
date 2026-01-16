@@ -21,7 +21,7 @@
         },
         {
             "parameters": {
-                "jsCode": "// Twitch EventSub Signature Verification\nconst crypto = require('crypto');\n\nconst body = $input.first().json;\nconst headers = $input.first().headers;\n\n// Get Twitch headers\nconst messageId = headers['twitch-eventsub-message-id'];\nconst timestamp = headers['twitch-eventsub-message-timestamp'];\nconst signature = headers['twitch-eventsub-message-signature'];\nconst messageType = headers['twitch-eventsub-message-type'];\n\n// Get raw body for signature verification\nconst rawBody = $input.first().binary?.data?.toString() || JSON.stringify(body);\n\n// Verify signature\nconst secret = $env.TWITCH_EVENTSUB_SECRET;\nconst message = messageId + timestamp + rawBody;\nconst expectedSignature = 'sha256=' + crypto\n  .createHmac('sha256', secret)\n  .update(message)\n  .digest('hex');\n\nconst isValid = signature === expectedSignature;\n\nreturn {\n  ...body,\n  _meta: {\n    messageType,\n    messageId,\n    timestamp,\n    signatureValid: isValid\n  }\n};"
+                "jsCode": "// Twitch EventSub Signature Verification\nconst crypto = require('crypto');\n\nconst body = $input.first().json;\nconst headers = $input.first().headers;\n\n// Get Twitch headers\nconst messageId = headers['twitch-eventsub-message-id'];\nconst timestamp = headers['twitch-eventsub-message-timestamp'];\nconst signature = headers['twitch-eventsub-message-signature'];\nconst messageType = headers['twitch-eventsub-message-type'];\n\n// Get raw body for signature verification\nconst rawBody = $input.first().binary?.data?.toString() || JSON.stringify(body);\n\n// WICHTIG: Ersetze diesen Wert mit deinem TWITCH_EVENTSUB_SECRET\nconst secret = 'DEIN_EVENTSUB_SECRET_HIER';\nconst message = messageId + timestamp + rawBody;\nconst expectedSignature = 'sha256=' + crypto\n  .createHmac('sha256', secret)\n  .update(message)\n  .digest('hex');\n\nconst isValid = signature === expectedSignature;\n\nreturn {\n  ...body,\n  _meta: {\n    messageType,\n    messageId,\n    timestamp,\n    signatureValid: isValid\n  }\n};"
             },
             "id": "verify-signature",
             "name": "Verify Signature",
@@ -286,13 +286,13 @@
         {
             "parameters": {
                 "method": "POST",
-                "url": "=http://localhost:8765/send",
+                "url": "https://tbot.weeel.de/send",
                 "sendHeaders": true,
                 "headerParameters": {
                     "parameters": [
                         {
                             "name": "X-API-Key",
-                            "value": "={{ $env.HANDLER_API_KEY }}"
+                            "value": "DEIN_API_KEY_HIER"
                         }
                     ]
                 },

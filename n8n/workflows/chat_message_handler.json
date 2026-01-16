@@ -172,13 +172,13 @@
         {
             "parameters": {
                 "method": "POST",
-                "url": "=http://localhost:8765/send",
+                "url": "https://tbot.weeel.de/send",
                 "sendHeaders": true,
                 "headerParameters": {
                     "parameters": [
                         {
                             "name": "X-API-Key",
-                            "value": "={{ $env.HANDLER_API_KEY }}"
+                            "value": "DEIN_API_KEY_HIER"
                         }
                     ]
                 },
