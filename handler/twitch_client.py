@@ -22,16 +22,16 @@ class TwitchBot(commands.Bot):
     ):
         settings = get_settings()
         
-        # Ensure token has oauth: prefix for TwitchIO
+        # TwitchIO expects token WITHOUT oauth: prefix
         token = settings.twitch_token
-        if not token.startswith("oauth:"):
-            token = f"oauth:{token}"
+        if token.startswith("oauth:"):
+            token = token[6:]  # Remove oauth: prefix
         
         logger.info(
             "initializing_twitch_bot",
             channel=settings.twitch_channel,
             bot_nick=settings.twitch_bot_nick,
-            token_format="oauth:***" if token.startswith("oauth:") else "raw",
+            token_length=len(token),
         )
         
         super().__init__(
