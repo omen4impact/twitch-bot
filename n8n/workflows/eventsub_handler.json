@@ -256,12 +256,28 @@
                         {
                             "name": "X-API-Key",
                             "value": "DEIN_API_KEY_HIER"
+                        },
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
                         }
                     ]
                 },
                 "sendBody": true,
-                "specifyBody": "json",
-                "jsonBody": "={\n  \"channel\": \"{{ $json.channel }}\",\n  \"message\": \"{{ $json.response }}\"\n}",
+                "contentType": "json",
+                "specifyBody": "keypair",
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "channel",
+                            "value": "={{ $json.channel }}"
+                        },
+                        {
+                            "name": "message",
+                            "value": "={{ $json.response }}"
+                        }
+                    ]
+                },
                 "options": {}
             },
             "id": "send-event-message",
