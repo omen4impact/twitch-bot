@@ -1,0 +1,332 @@
+{
+    "name": "Twitch Chat Message Handler",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "twitch/message",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "id": "webhook-trigger",
+            "name": "Webhook Trigger",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2,
+            "position": [
+                250,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": false,
+                        "leftValue": "",
+                        "typeValidation": "strict"
+                    },
+                    "conditions": [
+                        {
+                            "id": "condition-command",
+                            "leftValue": "={{ $json.message }}",
+                            "rightValue": "!",
+                            "operator": {
+                                "type": "string",
+                                "operation": "startsWith"
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                },
+                "options": {}
+            },
+            "id": "is-command",
+            "name": "Is Command?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [
+                470,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "// Parse the command and arguments\nconst message = $input.first().json.message;\nconst parts = message.slice(1).split(' ');\nconst command = parts[0].toLowerCase();\nconst args = parts.slice(1);\n\nreturn {\n  ...($input.first().json),\n  command: command,\n  args: args,\n  argsString: args.join(' ')\n};"
+            },
+            "id": "parse-command",
+            "name": "Parse Command",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                690,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "rules": {
+                    "values": [
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": false,
+                                    "leftValue": "",
+                                    "typeValidation": "strict"
+                                },
+                                "conditions": [
+                                    {
+                                        "leftValue": "={{ $json.command }}",
+                                        "rightValue": "ping",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    }
+                                ],
+                                "combinator": "and"
+                            },
+                            "renameOutput": true,
+                            "outputKey": "ping"
+                        },
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": false,
+                                    "leftValue": "",
+                                    "typeValidation": "strict"
+                                },
+                                "conditions": [
+                                    {
+                                        "leftValue": "={{ $json.command }}",
+                                        "rightValue": "help",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    }
+                                ],
+                                "combinator": "and"
+                            },
+                            "renameOutput": true,
+                            "outputKey": "help"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "command-router",
+            "name": "Command Router",
+            "type": "n8n-nodes-base.switch",
+            "typeVersion": 3,
+            "position": [
+                910,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "assignments": {
+                    "assignments": [
+                        {
+                            "id": "response-ping",
+                            "name": "response",
+                            "value": "={{ 'Pong! 🏓 @' + $json.username }}",
+                            "type": "string"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "ping-response",
+            "name": "Ping Response",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 3.4,
+            "position": [
+                1130,
+                100
+            ]
+        },
+        {
+            "parameters": {
+                "assignments": {
+                    "assignments": [
+                        {
+                            "id": "response-help",
+                            "name": "response",
+                            "value": "Verfügbare Commands: !ping, !help",
+                            "type": "string"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "help-response",
+            "name": "Help Response",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 3.4,
+            "position": [
+                1130,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "=http://localhost:8765/send",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "X-API-Key",
+                            "value": "={{ $env.HANDLER_API_KEY }}"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\n  \"channel\": \"{{ $json.channel }}\",\n  \"message\": \"{{ $json.response }}\"\n}",
+                "options": {}
+            },
+            "id": "send-response",
+            "name": "Send to Handler",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1350,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={\"status\": \"ok\", \"processed\": true}",
+                "options": {}
+            },
+            "id": "respond-webhook",
+            "name": "Respond to Webhook",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1.1,
+            "position": [
+                1570,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={\"status\": \"ok\", \"processed\": false, \"reason\": \"not a command\"}",
+                "options": {}
+            },
+            "id": "respond-no-command",
+            "name": "Respond (No Command)",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1.1,
+            "position": [
+                690,
+                400
+            ]
+        }
+    ],
+    "connections": {
+        "Webhook Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Is Command?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Is Command?": {
+            "main": [
+                [
+                    {
+                        "node": "Parse Command",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Respond (No Command)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Parse Command": {
+            "main": [
+                [
+                    {
+                        "node": "Command Router",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Command Router": {
+            "main": [
+                [
+                    {
+                        "node": "Ping Response",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Help Response",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Ping Response": {
+            "main": [
+                [
+                    {
+                        "node": "Send to Handler",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Help Response": {
+            "main": [
+                [
+                    {
+                        "node": "Send to Handler",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Send to Handler": {
+            "main": [
+                [
+                    {
+                        "node": "Respond to Webhook",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "staticData": null,
+    "tags": [
+        "twitch",
+        "chat"
+    ],
+    "triggerCount": 1
+}

@@ -1,0 +1,26 @@
+[Unit]
+Description=Twitch Bot Handler
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/twitchbot/handler
+ExecStart=/opt/twitchbot/venv/bin/python -m main
+Restart=always
+RestartSec=5
+EnvironmentFile=/opt/twitchbot/.env
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=twitch-handler
+
+# Security
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/twitchbot
+
+[Install]
+WantedBy=multi-user.target
